@@ -1,0 +1,64 @@
+name: GitHub Repository Crawler
+
+on:
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  crawl-repositories:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: github_crawler
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Setup PostgreSQL schema
+      run: |
+        PGPASSWORD=postgres psql -h localhost -U postgres -d github_crawler -f schema.sql
+      env:
+        PGPASSWORD: postgres
+    
+    - name: Run GitHub crawler
+      run: |
+        python crawler.py
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/github_crawler
+    
+    - name: Export database contents
+      run: |
+        PGPASSWORD=postgres psql -h localhost -U postgres -d github_crawler -c "\COPY repositories TO 'repositories.csv' WITH CSV HEADER;"
+        PGPASSWORD=postgres psql -h localhost -U postgres -d github_crawler -c "SELECT COUNT(*) as total_repositories FROM repositories;" -t -o repository_count.txt
+      env:
+        PGPASSWORD: postgres
+    
+    - name: Upload results as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: crawled-repositories
+        path: |
+          repositories.csv
+          repository_count.txt
