@@ -96,7 +96,7 @@ class GitHubCrawler:
         cursor.close()
         conn.close()
     
-    def crawl(self, target_count=100000):  # Start with 100000 for testing
+    def crawl(self, target_count=100000): 
         logger.info(f"Starting crawl for {target_count} repositories")
         
         cursor_after = None
