@@ -2,6 +2,8 @@ name: GitHub Repository Crawler
 
 on:
   workflow_dispatch:  # Allows manual trigger
+  schedule:
+    - cron: '0 2 * * *'
 
 jobs:
   crawl-repositories:
